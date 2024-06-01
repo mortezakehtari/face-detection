@@ -1,0 +1,17 @@
+<div id="face-detection">
+  <div id="video-wrapper">
+    <video #videoElement autoplay>
+    </video>
+    <span #boundary [ngClass]="{suitable: enabledCaptureButton, captured: captured}"></span>
+  </div>
+  <canvas #canvasElement style="display:none"></canvas>
+  <div id="feedback"></div>
+  @if (errors.length) {
+    <div class="error">
+      <h4>
+        {{ errorMapper[ errors[ 0 ] ].errorTitle }}
+      </h4>
+      <p>{{ errorMapper[ errors[ 0 ] ].errorMessage }}</p>
+    </div>
+  }
+</div>
