@@ -13,17 +13,21 @@ enum ERROR_TYPE {
   VERTICAL_TILT,
   YAW_ROTATE,
   FACE_VISIBILITY,
-
 }
 
-const scoreThreshold = 0.9;
+//constants and threshold can be set here
+const scoreThreshold = 0.9; //face visibility
+const errorMargin = 1.5; //face in ellipse
+const tiltThreshold = 10; // Maximum allowed tilt angle in degrees
+const yawThreshold = 0.5; // Threshold for determining significant yaw rotation
+const headTiltUpOrDownThreshold = 0.3; // Threshold for determining significant tilt up or down
 
 @Component({
   selector: 'app-root',
   standalone: true,
   imports: [RouterOutlet, NgClass, NgSwitch, NgSwitchCase],
   templateUrl: './app.component.html',
-  styleUrl: './app.component.scss'
+  styleUrl: './app.component.scss',
 })
 export class AppComponent implements AfterViewInit {
   enabledCaptureButton = false;
@@ -44,7 +48,8 @@ export class AppComponent implements AfterViewInit {
     const canvas = this.canvasElement.nativeElement;
     this.context = canvas.getContext('2d');
 
-    navigator.mediaDevices.getUserMedia({video: true})
+    navigator.mediaDevices
+      .getUserMedia({ video: true })
       .then((stream) => {
         video.srcObject = stream;
         video.play();
@@ -63,22 +68,46 @@ export class AppComponent implements AfterViewInit {
 
         const ellipseDimensions = this.calculateEllipseDimensions(video);
 
-        this.drawEllipse(this.context as CanvasRenderingContext2D, ellipseDimensions.x, ellipseDimensions.y, ellipseDimensions.width, ellipseDimensions.height);
+        this.drawEllipse(
+          this.context as CanvasRenderingContext2D,
+          ellipseDimensions.x,
+          ellipseDimensions.y,
+          ellipseDimensions.width,
+          ellipseDimensions.height
+        );
 
         this.enabledCaptureButton = await this.processImage(canvas);
       }, 500); // Adjust the interval as needed
     });
-
   }
 
   capture() {
-    this.context?.setTransform(-1, 0, 0, 1, this.canvasElement.nativeElement.width, 0); // Flip horizontally
-    this.context?.drawImage(this.videoElement.nativeElement, 0, 0, this.canvasElement.nativeElement.width, this.canvasElement.nativeElement.height);
+    this.context?.setTransform(
+      -1,
+      0,
+      0,
+      1,
+      this.canvasElement.nativeElement.width,
+      0
+    ); // Flip horizontally
+    this.context?.drawImage(
+      this.videoElement.nativeElement,
+      0,
+      0,
+      this.canvasElement.nativeElement.width,
+      this.canvasElement.nativeElement.height
+    );
     this.context?.setTransform(1, 0, 0, 1, 0, 0); // Reset transform
     const dataUrl = this.canvasElement.nativeElement.toDataURL('image/png');
   }
 
-  drawEllipse(context: CanvasRenderingContext2D, x: number, y: number, width: number, height: number) {
+  drawEllipse(
+    context: CanvasRenderingContext2D,
+    x: number,
+    y: number,
+    width: number,
+    height: number
+  ) {
     context.beginPath();
     context.ellipse(x, y, width / 2, height / 2, 0, 0, 2 * Math.PI);
     context.lineWidth = 2;
@@ -91,7 +120,8 @@ export class AppComponent implements AfterViewInit {
     const grey = img.grey();
     const histogram = grey.getHistogram();
 
-    let mean = 0, stdDev = 0;
+    let mean = 0,
+      stdDev = 0;
     for (let i = 0; i < histogram.length; i++) {
       mean += i * histogram[i];
     }
@@ -111,23 +141,26 @@ export class AppComponent implements AfterViewInit {
     }
     this.removeErrorMessage(ERROR_TYPE.LOW_LIGHT);
 
-    const detection = await faceapi.detectSingleFace(canvas, new faceapi.TinyFaceDetectorOptions()).withFaceLandmarks();
+    const detection = await faceapi
+      .detectSingleFace(canvas, new faceapi.TinyFaceDetectorOptions())
+      .withFaceLandmarks();
     if (detection) {
-
       const box = detection.detection.box;
       const landmarks = detection.landmarks;
       const expectedEllipse = {
         x: canvas.width / 2,
         y: canvas.height / 2,
         width: 200,
-        height: 300
+        height: 300,
       };
       const isInEllipse = this.isFaceInEllipse(box, expectedEllipse);
       const isHeadStraight = this.isHeadStraight(landmarks);
       const isLandMarkValid = this.areLandmarksValid(landmarks);
       const isFaceVisibility = this.isFaceVisible(detection.detection);
 
-      return isInEllipse && isHeadStraight && isLandMarkValid && isFaceVisibility;
+      return (
+        isInEllipse && isHeadStraight && isLandMarkValid && isFaceVisibility
+      );
     }
     return false;
   }
@@ -144,7 +177,7 @@ export class AppComponent implements AfterViewInit {
       x: width / 2,
       y: height / 2,
       width: ellipseWidth,
-      height: ellipseHeight
+      height: ellipseHeight,
     };
   }
 
@@ -172,22 +205,24 @@ export class AppComponent implements AfterViewInit {
 
   isFaceInEllipse(faceBox: any, ellipse: any) {
     // Increase ellipse dimensions by 15%
-    const errorMargin = 1.5;
+
     const a = (ellipse.width / 2) * errorMargin;
     const b = (ellipse.height / 2) * errorMargin;
     const h = ellipse.x;
     const k = ellipse.y;
 
     const corners = [
-      {x: faceBox.x, y: faceBox.y}, // Top-left
-      {x: faceBox.x + faceBox.width, y: faceBox.y}, // Top-right
-      {x: faceBox.x, y: faceBox.y + faceBox.height}, // Bottom-left
-      {x: faceBox.x + faceBox.width, y: faceBox.y + faceBox.height} // Bottom-right
+      { x: faceBox.x, y: faceBox.y }, // Top-left
+      { x: faceBox.x + faceBox.width, y: faceBox.y }, // Top-right
+      { x: faceBox.x, y: faceBox.y + faceBox.height }, // Bottom-left
+      { x: faceBox.x + faceBox.width, y: faceBox.y + faceBox.height }, // Bottom-right
     ];
 
     // Check if all corners are within the ellipse
-    const isInEllipse = corners.every(corner => {
-      const value = Math.pow(corner.x - h, 2) / Math.pow(a, 2) + Math.pow(corner.y - k, 2) / Math.pow(b, 2);
+    const isInEllipse = corners.every((corner) => {
+      const value =
+        Math.pow(corner.x - h, 2) / Math.pow(a, 2) +
+        Math.pow(corner.y - k, 2) / Math.pow(b, 2);
       return value <= 1;
     });
 
@@ -197,8 +232,7 @@ export class AppComponent implements AfterViewInit {
     const minFaceWidth = ellipse.width / 2; // Minimum acceptable face width
     const minFaceHeight = ellipse.height / 2; // Minimum acceptable face height
     const isFaceSizeAcceptable =
-      faceWidth >= minFaceWidth &&
-      faceHeight >= minFaceHeight;
+      faceWidth >= minFaceWidth && faceHeight >= minFaceHeight;
 
     if (!isInEllipse) {
       this.addErrorMessage(ERROR_TYPE.OUT_OF_BOX);
@@ -221,15 +255,15 @@ export class AppComponent implements AfterViewInit {
 
     const leftEyeCenter = {
       x: (leftEye[0].x + leftEye[3].x) / 2,
-      y: (leftEye[1].y + leftEye[5].y) / 2
+      y: (leftEye[1].y + leftEye[5].y) / 2,
     };
     const rightEyeCenter = {
       x: (rightEye[0].x + rightEye[3].x) / 2,
-      y: (rightEye[1].y + rightEye[5].y) / 2
+      y: (rightEye[1].y + rightEye[5].y) / 2,
     };
     const mouthCenter = {
       x: (mouth[0].x + mouth[6].x) / 2,
-      y: (mouth[3].y + mouth[9].y) / 2
+      y: (mouth[3].y + mouth[9].y) / 2,
     };
 
     // Calculate horizontal tilt angle between the eyes
@@ -237,24 +271,23 @@ export class AppComponent implements AfterViewInit {
     const deltaX = rightEyeCenter.x - leftEyeCenter.x;
     const eyeAngle = Math.atan2(deltaY, deltaX) * (180 / Math.PI);
 
-    const tiltThreshold = 10; // Maximum allowed tilt angle in degrees
-
     // Check if eyes are horizontally aligned within the threshold
     const isHorizontallyStraight = Math.abs(eyeAngle) <= tiltThreshold;
 
     // Calculate the vertical alignment
     const verticalDistEyes = Math.abs(leftEyeCenter.y - rightEyeCenter.y);
-    const verticalDistEyesNose = Math.abs((leftEyeCenter.y + rightEyeCenter.y) / 2 - noseTip.y);
+    const verticalDistEyesNose = Math.abs(
+      (leftEyeCenter.y + rightEyeCenter.y) / 2 - noseTip.y
+    );
     const verticalDistNoseMouth = Math.abs(noseTip.y - mouthCenter.y);
 
     const verticalThreshold = 50; // Maximum allowed vertical misalignment in pixels
 
     // Ensure the head is not tilted up or down significantly
-    const noseToEyesMidpointY = (leftEyeCenter.y + rightEyeCenter.y) / 2;
+    // const noseToEyesMidpointY = (leftEyeCenter.y + rightEyeCenter.y) / 2;
     const noseToMouthY = Math.abs(noseTip.y - mouthCenter.y);
 
     const avgEyeNoseMouthRatio = verticalDistEyesNose / noseToMouthY;
-    const headTiltUpOrDownThreshold = 0.3; // Threshold for determining significant tilt up or down
 
     const isVerticallyStraight =
       verticalDistEyes <= verticalThreshold &&
@@ -266,8 +299,9 @@ export class AppComponent implements AfterViewInit {
     const noseToRightEyeX = Math.abs(noseTip.x - rightEyeCenter.x);
 
     // Ensure the head is not rotated left or right significantly
-    const yawThreshold = 0.5; // Threshold for determining significant yaw rotation
-    const isYawStraight = Math.abs(noseToLeftEyeX - noseToRightEyeX) <= yawThreshold * Math.min(noseToLeftEyeX, noseToRightEyeX);
+    const isYawStraight =
+      Math.abs(noseToLeftEyeX - noseToRightEyeX) <=
+      yawThreshold * Math.min(noseToLeftEyeX, noseToRightEyeX);
 
     if (!isHorizontallyStraight) {
       this.addErrorMessage(ERROR_TYPE.HORIZONTAL_TILT);
@@ -296,6 +330,6 @@ export class AppComponent implements AfterViewInit {
   }
 
   removeErrorMessage(errorType: ERROR_TYPE) {
-    this.messages = this.messages.filter(error => error !== errorType);
+    this.messages = this.messages.filter((error) => error !== errorType);
   }
 }
