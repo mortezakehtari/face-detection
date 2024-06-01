@@ -21,6 +21,8 @@ const errorMargin = 1.5; //face in ellipse
 const tiltThreshold = 10; // Maximum allowed tilt angle in degrees
 const yawThreshold = 0.5; // Threshold for determining significant yaw rotation
 const headTiltUpOrDownThreshold = 0.3; // Threshold for determining significant tilt up or down
+const lightThreshold = 80; //Threshold for light
+const contrastThreshold = 30; //Threshold for contrast
 
 @Component({
   selector: 'app-root',
@@ -132,9 +134,6 @@ export class AppComponent implements AfterViewInit {
     }
     stdDev = Math.sqrt(stdDev / grey.size);
 
-    const lightThreshold = 100;
-    const contrastThreshold = 50;
-
     if (mean <= lightThreshold || stdDev <= contrastThreshold) {
       this.addErrorMessage(ERROR_TYPE.LOW_LIGHT);
       return false;
@@ -168,7 +167,6 @@ export class AppComponent implements AfterViewInit {
   calculateEllipseDimensions(video: HTMLVideoElement) {
     const width = video.videoWidth;
     const height = video.videoHeight;
-    console.log(video.videoWidth, video.videoHeight);
 
     const ellipseWidth = width * 0.5; // 50% of the video width
     const ellipseHeight = height * 0.75; // 75% of the video height
