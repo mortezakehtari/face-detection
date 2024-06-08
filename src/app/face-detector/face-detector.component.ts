@@ -107,7 +107,7 @@ export class FaceDetectorComponent implements AfterViewInit, OnDestroy {
 
         this.enabledCaptureButton = await this.processImage(canvas);
         this.changeStatus.emit(this.enabledCaptureButton);
-      }, 500); // Adjust the interval as needed
+      }, 1000); // Adjust the interval as needed
     });
   }
 
