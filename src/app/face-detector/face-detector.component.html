@@ -16,12 +16,21 @@
   </div>
   <canvas #canvasElement style="display:none"></canvas>
   <div id="feedback"></div>
-  @if (errors.length) {
-    <div class="error">
+  <div class="hint">
+    @if (errors.length) {
       <h4>
         {{ errorMapper[ errors[ 0 ] ].errorTitle }}
       </h4>
       <p>{{ errorMapper[ errors[ 0 ] ].errorMessage }}</p>
-    </div>
-  }
+    }
+    @if (captured) {
+      <h4>عکس شما ثبت شد.</h4>
+      <p>اگر تمایل به ثبت دوباره عکس دارید می‌توانید دوباره اقدام کنید.</p>
+    }
+    @if (enabledCaptureButton) {
+      <h4>نور و زاویه مناسب است</h4>
+      <p>با فشردن دکمه قرمز عکس خود را ثبت‌کنید.</p>
+    }
+  </div>
+
 </div>

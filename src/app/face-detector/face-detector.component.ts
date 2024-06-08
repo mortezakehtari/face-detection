@@ -37,18 +37,27 @@ export class FaceDetectorComponent implements AfterViewInit, OnDestroy {
 
   @Input() captured: boolean = false;
   @Input() errorMapper: { [key: string]: { errorTitle: string, errorMessage: string } } = {
-    lowLight: {errorTitle: 'نور ناکافی', errorMessage: 'لطفا در محیطی قرار بگیرید که نور به میزان مناسبی باشد.'},
-    tooFar: {errorTitle: 'زاویه نامناسب', errorMessage: 'لطفا صورت خود را به دوربین نزدیک‌تر کنید'},
+    lowLight: {errorTitle: 'نور کافی نیست', errorMessage: 'لطفا به مکانی با نور روشن تر بروید'},
+    tooFar: {errorTitle: 'صورت شما خیلی دور است', errorMessage: 'لطفا به دوربین نزدیک تر شوید.'},
     outOfBox: {
-      errorTitle: 'صورت خود را وسط کادر قرار دهید.',
-      errorMessage: 'با استفاده از دوربین جلوی گوشی، یک عکس تمام‌رخ از خودتان بگیرید.'
+      errorTitle: 'صورت شما در کادر نیست',
+      errorMessage: 'لطفا صورت خود را داخل کادر قرار دهید'
     },
-    horizontalTilt: {errorTitle: 'زاویه نامناسب', errorMessage: 'لطفا سر خود را به چپ یا راست بیاورید'},
-    verticalTilt: {errorTitle: 'زاویه نامناسب', errorMessage: 'لطفا سر خود را بالا یا پاین بیاورید'},
-    yawRotate: {errorTitle: 'زاویه نامناسب', errorMessage: 'لطفا سر خود مستقیم نگه دارید'},
+    horizontalTilt: {
+      errorTitle: 'صورت شما به چپ یا راست متمایل است',
+      errorMessage: 'لطفا صورت خود صاف و در مقابل دوربین قرار دهید'
+    },
+    verticalTilt: {
+      errorTitle: 'صورت شما به بالا یا پایین متمایل است',
+      errorMessage: 'لطفا صورت خود صاف و در مقابل دوربین قرار دهید'
+    },
+    yawRotate: {
+      errorTitle: 'صورت شما به چپ یا راست خم شده ‌است.',
+      errorMessage: 'لطفا صورت خود صاف و در مقابل دوربین قرار دهید'
+    },
     faceVisibility: {
-      errorTitle: 'صورت خود را وسط کادر قرار دهید.',
-      errorMessage: 'با استفاده از دوربین جلوی گوشی، یک عکس تمام‌رخ از خودتان بگیرید.'
+      errorTitle: 'شیئی جلوی صورتتان است',
+      errorMessage: 'لطفا شیء را از جلوی صورتتان بردارید'
     }
   };
   @Output() changeStatus = new EventEmitter();
