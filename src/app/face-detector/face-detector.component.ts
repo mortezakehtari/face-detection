@@ -30,6 +30,7 @@ export class FaceDetectorComponent implements AfterViewInit, OnDestroy {
   context!: any;
   interval: any;
   errors: ERROR_TYPE[] = [];
+  loading = true;
 
   @ViewChild('videoElement') videoElement!: ElementRef<HTMLVideoElement>;
   @ViewChild('canvasElement') canvasElement!: ElementRef<HTMLCanvasElement>;
@@ -56,7 +57,10 @@ export class FaceDetectorComponent implements AfterViewInit, OnDestroy {
   async ngAfterViewInit() {
     await faceapi.nets.tinyFaceDetector.loadFromUri('/assets/models');
     await faceapi.nets.faceLandmark68Net.loadFromUri('/assets/models');
-    this.initCamera();
+    setTimeout(() => {
+      this.loading = false;
+      this.initCamera();
+    }, 2000);
   }
 
   ngOnDestroy() {

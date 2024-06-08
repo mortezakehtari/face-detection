@@ -25,22 +25,62 @@
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
-      width: 239px;
-      height: 300px;
+      width: 225px;
+      height: 280px;
       border-radius: 50%;
       border: 6px solid #ffffff;
       z-index: 1;
       background: transparent;
       transition: outline-color 0.3s ease-out;
       box-shadow: #ffffff 0 0 0 99999px;
-      outline: 3px solid #FF2638;
 
-      &.suitable {
-        outline-color: #01D673;
+      svg {
+        position: absolute;
+        top: 17px;
+        left: -38px;
+        transform: rotate(-90deg);
       }
 
-      &.captured {
-        outline-color: #0040FF;
+      .ellipse-background {
+        fill: none;
+        stroke: rgb(207, 207, 207);
+        stroke-width: 6;
+      }
+
+      .ellipse-foreground {
+        fill: none;
+        stroke-width: 6;
+        stroke-dashoffset: 855;
+        stroke-dasharray: 855;
+        stroke-linecap: round;
+        transition: stroke 0.3s ease;
+
+        &.intermediate {
+          stroke: #0040FF;
+          stroke-dasharray: 215 640;
+          animation: revolve 2s linear infinite forwards;
+          animation-delay: 0.5s;
+        }
+
+        &.recording {
+          stroke: #0040FF;
+          animation: draw 20s linear forwards;
+        }
+
+        &.fail {
+          stroke: #FF2638;
+          stroke-dashoffset: 0;
+        }
+
+        &.suitable {
+          stroke: #01D673;
+          stroke-dashoffset: 0;
+        }
+
+        &.captured {
+          stroke: #0040FF;
+          stroke-dashoffset: 0;
+        }
       }
     }
   }
@@ -87,3 +127,18 @@
   }
 }
 
+@keyframes revolve {
+  0% {
+    stroke-dashoffset: 1710;
+  }
+
+  100% {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}

@@ -2,7 +2,17 @@
   <div id="video-wrapper">
     <video #videoElement autoplay>
     </video>
-    <span #boundary [ngClass]="{suitable: enabledCaptureButton, captured: captured}"></span>
+    <span>
+    <svg height="240" viewBox="0 0 320 250" width="300">
+      <!-- Background ellipse for the gray stroke -->
+      <ellipse class="ellipse-background" cx="155" cy="125" rx="150" ry="120"/>
+      <!-- Foreground ellipse for the blue animated stroke -->
+      <ellipse
+              [ngClass]="{'fail': !enabledCaptureButton &&  !loading, 'suitable': enabledCaptureButton, 'intermediate': loading}"
+              class="ellipse-foreground"
+              cx="155" cy="125" rx="150" ry="120"/>
+    </svg>
+    </span>
   </div>
   <canvas #canvasElement style="display:none"></canvas>
   <div id="feedback"></div>
