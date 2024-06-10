@@ -1,1 +1,3 @@
-<app-face-detector></app-face-detector>
+<app-face-detector (isEnableBtn)="statusChange($event)" behaviorCapture="video" />
+
+<button [disabled]="btnDisable()" (click)="startingVideo()">Record</button>

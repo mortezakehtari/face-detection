@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, model, viewChild } from '@angular/core';
 import { FaceDetectorComponent } from './face-detector/face-detector.component';
 
 @Component({
@@ -9,5 +9,16 @@ import { FaceDetectorComponent } from './face-detector/face-detector.component';
   styleUrl: './app.component.scss',
 })
 export class AppComponent {
+  btnDisable = model<boolean>(false)
+
+  faceDetector = viewChild.required<FaceDetectorComponent>(FaceDetectorComponent)
+
+  statusChange(event: boolean) {
+    this.btnDisable.set(!event)
+  }
+
+  startingVideo() {
+    this.faceDetector().initCapture()
+  }
 
 }

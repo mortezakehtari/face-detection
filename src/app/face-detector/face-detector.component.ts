@@ -1,9 +1,8 @@
-import { AfterViewInit, Component, ElementRef, EventEmitter, Input, OnDestroy, Output, ViewChild } from '@angular/core';
-import { RouterOutlet } from '@angular/router';
+import { AfterViewInit, Component, ElementRef, EventEmitter, Input, OnDestroy, Output, computed, input, model, output, signal, viewChild } from '@angular/core';
 import * as faceapi from 'face-api.js';
 import { FaceDetection } from 'face-api.js';
 import Image from 'image-js';
-import { NgClass, NgSwitch, NgSwitchCase } from '@angular/common';
+import { NgClass } from '@angular/common';
 import { ERROR_TYPE } from './error-type.model';
 
 //thresholds can be set here
@@ -19,26 +18,40 @@ const contrastThreshold = 30; //Threshold for contrast
 @Component({
   selector: 'app-face-detector',
   standalone: true,
-  imports: [RouterOutlet, NgClass, NgSwitch, NgSwitchCase],
+  imports: [NgClass],
   templateUrl: './face-detector.component.html',
   styleUrl: './face-detector.component.scss'
 })
 
 export class FaceDetectorComponent implements AfterViewInit, OnDestroy {
-  enabledCaptureButton = false;
+  enabledCaptureButton = model(false);
 
-  context!: any;
-  interval: any;
-  errors: ERROR_TYPE[] = [];
-  loading = true;
+  context = signal<any>('');
+  interval = signal<any>('');;
+  errors = model<ERROR_TYPE[]>([])
+  loading = model(true);
 
-  @ViewChild('videoElement') videoElement!: ElementRef<HTMLVideoElement>;
-  @ViewChild('canvasElement') canvasElement!: ElementRef<HTMLCanvasElement>;
+  // video
+  isPauseVideo = model(false)
+  videoRecordStatus = model<'timerBeforeRecord' | 'recording' | 'endRecorded' | null>(null)
+  processTimerRecordingVideo = input<number>(5)
 
-  @Input() captured: boolean = false;
-  @Input() errorMapper: { [key: string]: { errorTitle: string, errorMessage: string } } = {
-    lowLight: {errorTitle: 'نور کافی نیست', errorMessage: 'لطفا به مکانی با نور روشن تر بروید'},
-    tooFar: {errorTitle: 'صورت شما خیلی دور است', errorMessage: 'لطفا به دوربین نزدیک تر شوید.'},
+  processTimerBeforTakeVideo = input<number>(3)
+  _processTimerBeforTakeVideo = signal(this.processTimerBeforTakeVideo())
+
+  videoElement = viewChild.required<ElementRef<HTMLVideoElement>>('videoElement')
+  canvasElement = viewChild.required<ElementRef<HTMLCanvasElement>>('canvasElement')
+
+  #videoElement = computed(() => this.videoElement().nativeElement)
+  #canvasElement = computed(() => this.canvasElement().nativeElement)
+
+  behaviorCapture = input<'video' | 'photo'>('photo')
+  isVideoCapture = computed(() => this.behaviorCapture() == "video")
+
+  captured = model(false);
+  errorMapper = signal<{ [key: string]: { errorTitle: string, errorMessage: string } }>({
+    lowLight: { errorTitle: 'نور کافی نیست', errorMessage: 'لطفا به مکانی با نور روشن تر بروید' },
+    tooFar: { errorTitle: 'صورت شما خیلی دور است', errorMessage: 'لطفا به دوربین نزدیک تر شوید.' },
     outOfBox: {
       errorTitle: 'صورت شما در کادر نیست',
       errorMessage: 'لطفا صورت خود را داخل کادر قرار دهید'
@@ -59,86 +72,157 @@ export class FaceDetectorComponent implements AfterViewInit, OnDestroy {
       errorTitle: 'شیئی جلوی صورتتان است',
       errorMessage: 'لطفا شیء را از جلوی صورتتان بردارید'
     }
-  };
-  @Output() changeStatus = new EventEmitter();
-  @Output() capturedImage = new EventEmitter();
+  });
+  isEnableBtn = output<boolean>()
+  capturedFile = output<string>()
 
   async ngAfterViewInit() {
     await faceapi.nets.tinyFaceDetector.loadFromUri('/assets/models');
     await faceapi.nets.faceLandmark68Net.loadFromUri('/assets/models');
+    this.isEnableBtn.emit(false)
     setTimeout(() => {
-      this.loading = false;
+      this.loading.set(false);
       this.initCamera();
     }, 2000);
   }
 
   ngOnDestroy() {
-    if (this.interval) {
-      clearInterval(this.interval);
+    if (this.interval()) {
+      clearInterval(this.interval());
     }
   }
 
+  initCapture() {
+    clearInterval(this.interval());
+    this.isEnableBtn.emit(false)
+    if (this.isVideoCapture()) this.startTimerForVideo();
+    else this.takePhoto();
+  }
+
   initCamera() {
-    const video = this.videoElement.nativeElement;
-    const canvas = this.canvasElement.nativeElement;
-    this.context = canvas.getContext('2d');
-    video.muted = true;
-    video.playsInline = true;
-    video.autoplay = true;
+    this.context.set(this.#canvasElement().getContext('2d'))
+    this.#videoElement().muted = true;
+    this.#videoElement().playsInline = true;
+    this.#videoElement().autoplay = true;
 
     navigator.mediaDevices
-      .getUserMedia({video: true})
+      .getUserMedia({ video: true })
       .then((stream) => {
-        video.srcObject = stream;
-        video.play();
+        this.#videoElement().srcObject = stream;
+        this.#videoElement().play();
+        this.captureValidate()
       })
       .catch((err) => {
         console.error('Error accessing camera: ', err);
       });
 
-    video.addEventListener('play', () => {
-      this.interval = setInterval(async () => {
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        this.context?.setTransform(-1, 0, 0, 1, canvas.width, 0); // Flip horizontally
-        this.context?.drawImage(video, 0, 0, canvas.width, canvas.height);
-        this.context?.setTransform(1, 0, 0, 1, 0, 0); // Reset transform
+    if (this.isVideoCapture()) {
+      this.#videoElement().addEventListener("pause", () => {
+        this.isPauseVideo.set(true)
+      })
+    }
 
-        const ellipseDimensions = this.calculateEllipseDimensions(video);
-
-        this.drawEllipse(
-          this.context as CanvasRenderingContext2D,
-          ellipseDimensions.x,
-          ellipseDimensions.y,
-          ellipseDimensions.width,
-          ellipseDimensions.height
-        );
-
-        this.enabledCaptureButton = await this.processImage(canvas);
-        this.changeStatus.emit(this.enabledCaptureButton);
-      }, 1000); // Adjust the interval as needed
-    });
   }
 
-  capture() {
-    this.context?.setTransform(
+  captureValidate() {
+    this.interval.set(setInterval(async () => {
+      this.#canvasElement().width = this.#videoElement().videoWidth;
+      this.#canvasElement().height = this.#videoElement().videoHeight;
+      this.context()?.setTransform(-1, 0, 0, 1, this.#canvasElement().width, 0); // Flip horizontally
+      this.context()?.drawImage(this.#videoElement(), 0, 0, this.#canvasElement().width, this.#canvasElement().height);
+      this.context()?.setTransform(1, 0, 0, 1, 0, 0); // Reset transform
+
+      const ellipseDimensions = this.calculateEllipseDimensions(this.#videoElement());
+
+      this.drawEllipse(
+        this.context() as CanvasRenderingContext2D,
+        ellipseDimensions.x,
+        ellipseDimensions.y,
+        ellipseDimensions.width,
+        ellipseDimensions.height
+      );
+
+      this.enabledCaptureButton.set(await this.processImage(this.#canvasElement()))
+      this.isEnableBtn.emit(this.enabledCaptureButton());
+    }, 1000)) // Adjust the interval as needed)
+  }
+
+  takePhoto() {
+    this.context()?.setTransform(
       -1,
       0,
       0,
       1,
-      this.canvasElement.nativeElement.width,
+      this.#canvasElement().width,
       0
     ); // Flip horizontally
-    this.context?.drawImage(
-      this.videoElement.nativeElement,
+    this.context()?.drawImage(
+      this.videoElement().nativeElement,
       0,
       0,
-      this.canvasElement.nativeElement.width,
-      this.canvasElement.nativeElement.height
+      this.#canvasElement().width,
+      this.#canvasElement().height
     );
-    this.context?.setTransform(1, 0, 0, 1, 0, 0); // Reset transform
-    const dataUrl = this.canvasElement.nativeElement.toDataURL('image/png');
-    this.capturedImage.emit(dataUrl);
+    this.context()?.setTransform(1, 0, 0, 1, 0, 0); // Reset transform
+    const dataUrl = this.#canvasElement().toDataURL('image/png');
+
+
+    this.#canvasElement().toBlob((blob) => {
+      const url = URL.createObjectURL(blob as Blob);
+      this.#videoElement().autoplay = false
+      this.#videoElement().srcObject = null
+      this.#videoElement().style.transform = "none";
+      this.#videoElement().poster = url;
+    })
+
+    this.capturedFile.emit(dataUrl);
+    this.captured.set(true)
+  }
+
+  startTimerForVideo() {
+    this.videoRecordStatus.set('timerBeforeRecord')
+    let interval = setInterval(() => {
+      this._processTimerBeforTakeVideo.update((value) => value - 1)
+      if (this._processTimerBeforTakeVideo() == 0) {
+        clearInterval(interval)
+        this.startRecordingVideo()
+      }
+    }, 1000)
+  }
+
+  startRecordingVideo() {
+
+    const mediaRecorder = new MediaRecorder(this.#videoElement().srcObject as MediaStream);
+    const chunks: Blob[] = [];
+
+    mediaRecorder.ondataavailable = function (e) {
+      chunks.push(e.data);
+    };
+
+    mediaRecorder.start();
+    this.videoRecordStatus.set('recording')
+
+    setTimeout(() => {
+      mediaRecorder.stop();
+      this.videoRecordStatus.set('endRecorded')
+      this.isPauseVideo.set(true)
+    }, this.processTimerRecordingVideo() * 1000)
+
+    // listener on stop recording  
+    mediaRecorder.onstop = () => {
+      const blob = new Blob(chunks, { 'type': 'video/mp4' });
+      const videoURL = URL.createObjectURL(blob);
+      this.#videoElement().srcObject = null
+      this.#videoElement().autoplay = false
+      this.#videoElement().src = videoURL;
+      this.capturedFile.emit(videoURL);
+      this.captured.set(true)
+    };
+  }
+
+  playRecordedVideo() {
+    this.isPauseVideo.set(false)
+    this.#videoElement().play()
   }
 
   drawEllipse(
@@ -246,10 +330,10 @@ export class FaceDetectorComponent implements AfterViewInit, OnDestroy {
     const k = ellipse.y;
 
     const corners = [
-      {x: faceBox.x, y: faceBox.y}, // Top-left
-      {x: faceBox.x + faceBox.width, y: faceBox.y}, // Top-right
-      {x: faceBox.x, y: faceBox.y + faceBox.height}, // Bottom-left
-      {x: faceBox.x + faceBox.width, y: faceBox.y + faceBox.height}, // Bottom-right
+      { x: faceBox.x, y: faceBox.y }, // Top-left
+      { x: faceBox.x + faceBox.width, y: faceBox.y }, // Top-right
+      { x: faceBox.x, y: faceBox.y + faceBox.height }, // Bottom-left
+      { x: faceBox.x + faceBox.width, y: faceBox.y + faceBox.height }, // Bottom-right
     ];
 
     // Check if all corners are within the ellipse
@@ -356,13 +440,13 @@ export class FaceDetectorComponent implements AfterViewInit, OnDestroy {
   }
 
   addErrorMessage(errorType: ERROR_TYPE) {
-    if (this.errors.indexOf(errorType) === -1) {
-      this.errors.push(errorType);
+    if (this.errors().indexOf(errorType) === -1) {
+      this.errors.update((error) => [...error, errorType]);
     }
   }
 
   removeErrorMessage(errorType: ERROR_TYPE) {
-    this.errors = this.errors.filter((error) => error !== errorType);
+    this.errors.set(this.errors().filter((error) => error !== errorType))
   }
 }
 

@@ -2,34 +2,78 @@
   <div id="video-wrapper">
     <video #videoElement autoplay>
     </video>
-    <span>
-    <svg height="240" viewBox="0 0 320 250" width="300">
-      <!-- Background ellipse for the gray stroke -->
-      <ellipse class="ellipse-background" cx="155" cy="125" rx="150" ry="120"/>
-      <!-- Foreground ellipse for the blue animated stroke -->
-      <ellipse
-              [ngClass]="{'fail': !enabledCaptureButton &&  !loading, 'suitable': enabledCaptureButton, 'intermediate': loading}"
-              class="ellipse-foreground"
-              cx="155" cy="125" rx="150" ry="120"/>
-    </svg>
+    <span id="svg-wrapper" [ngClass]="{'bg-timer': videoRecordStatus() == 'timerBeforeRecord'}">
+      <svg viewBox="0 0 320 250">
+        <!-- Background ellipse for the gray stroke -->
+        <ellipse class="ellipse-background" cx="155" cy="125" rx="150" ry="120"/>
+        <!-- Foreground ellipse for the blue animated stroke -->
+        <ellipse
+                [ngClass]="{
+                  'fail': !enabledCaptureButton() && !loading(), 
+                  'suitable': enabledCaptureButton() && !videoRecordStatus() && !captured(), 
+                  'intermediate': loading(),
+                  'recording': videoRecordStatus() == 'recording',
+                  'captured': videoRecordStatus() == 'endRecorded' || captured()
+                }"
+                [style.animation-duration]="videoRecordStatus() == 'recording' && processTimerRecordingVideo()+'s'"
+                class="ellipse-foreground suitable"
+                cx="155" cy="125" rx="150" ry="120"/>
+      </svg>
+    @if (videoRecordStatus() == "timerBeforeRecord") {
+      <span class="timer-before-recording-video center-absolute">{{_processTimerBeforTakeVideo()}}</span>
+    }
+    @if (videoRecordStatus() == "endRecorded" && isPauseVideo()) {
+      <span class="play-video-img center-absolute">
+        <img src="/assets/play.svg" (click)="playRecordedVideo()">
+      </span>
+    }
     </span>
   </div>
   <canvas #canvasElement style="display:none"></canvas>
   <div id="feedback"></div>
   <div class="hint">
-    @if (errors.length) {
-      <h4>
-        {{ errorMapper[ errors[ 0 ] ].errorTitle }}
-      </h4>
-      <p>{{ errorMapper[ errors[ 0 ] ].errorMessage }}</p>
+    @switch (videoRecordStatus()) {
+      @case ('timerBeforeRecord') {
+        <h4>آماده ضبط ویدئو باشید</h4>
+        <p>بعد از اتمام ثانیه شمار، جمله‌ی نمایش داده شده را بلند و رسا بخوانید.</p>
+      }
+      @case ('recording') {
+        <div class="recording-content">
+          مادربزرگ من اومد خونمون ولی خیلی زود رفت
+          من دلم براش تنگ میشه کاش زودتر بیاد. 
+        </div>
+      }
+      @case ('endRecorded') {
+        <h4>ویدئو ضبط شد.</h4>
+        <p>اگر تمایل به ضبط دوباره ویدئو دارید می‌توانید دوباره اقدام کنید.</p>
+      }
     }
-    @if (captured) {
+
+    @if (errors().length && !videoRecordStatus() && !captured()) {
+      <h4>
+        {{ errorMapper()[ errors()[ 0 ] ].errorTitle }}
+      </h4>
+      <p>{{ errorMapper()[ errors()[ 0 ] ].errorMessage }}</p>
+    } @else if(!enabledCaptureButton() && !captured()) {
+      <h4>صورت خود را وسط کادر قرار دهید.</h4>
+      @if (isVideoCapture()) {
+        <p>بعد از فشردن دکمه ضبط ویدئو، جمله‌ی نمایش داده شده را بلند و رسا بخوانید.</p>
+      } @else {
+        <p>با استفاده از دوربین جلوی گوشی، یک عکس تمام‌رخ از خودتان بگیرید.</p>
+      }
+
+    } @else if(!videoRecordStatus() && !captured()) {
+      <h4>نور و زاویه مناسب است</h4>
+      @if(isVideoCapture()) {
+        <p>بعد از فشردن دکمه ضبط ویدئو، جمله‌ی نمایش داده شده را بلند و رسا بخوانید.</p>
+      } @else {
+        <p>با فشردن دکمه قرمز عکس خود را ثبت‌کنید.</p>
+      }
+    }
+
+    @if (captured() && !isVideoCapture()) {
       <h4>عکس شما ثبت شد.</h4>
       <p>اگر تمایل به ثبت دوباره عکس دارید می‌توانید دوباره اقدام کنید.</p>
-    }
-    @if (enabledCaptureButton) {
-      <h4>نور و زاویه مناسب است</h4>
-      <p>با فشردن دکمه قرمز عکس خود را ثبت‌کنید.</p>
     }
   </div>
 
